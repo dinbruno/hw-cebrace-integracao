@@ -1,0 +1,102 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "defaultValue": "sharepoint-sync-app"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "clientSecret": {
+      "type": "securestring"
+    },
+    "tenantId": {
+      "type": "string"
+    },
+    "listId": {
+      "type": "string"
+    },
+    "siteId": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "functionAppName": "[parameters('appName')]",
+    "hostingPlanName": "[concat(parameters('appName'), '-plan')]",
+    "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'storage')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-02-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage"
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2020-06-01",
+      "name": "[variables('hostingPlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2020-06-01",
+      "name": "[variables('functionAppName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2021-02-01').keys[0].value)]"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "node"
+            },
+            {
+              "name": "CLIENT_ID",
+              "value": "[parameters('clientId')]"
+            },
+            {
+              "name": "CLIENT_SECRET",
+              "value": "[parameters('clientSecret')]"
+            },
+            {
+              "name": "TENANT_ID",
+              "value": "[parameters('tenantId')]"
+            },
+            {
+              "name": "LIST_ID",
+              "value": "[parameters('listId')]"
+            },
+            {
+              "name": "SITE_ID",
+              "value": "[parameters('siteId')]"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

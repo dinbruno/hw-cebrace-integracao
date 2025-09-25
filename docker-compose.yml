@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  sharepoint-sync:
+    build: .
+    environment:
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - TENANT_ID=${TENANT_ID}
+      - LIST_ID=${LIST_ID}
+      - SITE_ID=${SITE_ID}
+    volumes:
+      - ./logs:/app/logs
+    restart: "no"
+    
+  # Scheduler usando cron
+  scheduler:
+    image: mcuadros/ofelia:latest
+    depends_on:
+      - sharepoint-sync
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      ofelia.job-run.sharepoint-sync.schedule: "0 0 8 * * *" # 08:00 todos os dias
+      ofelia.job-run.sharepoint-sync.container: "sharepoint-sync"
